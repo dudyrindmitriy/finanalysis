@@ -10,11 +10,22 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AlfaParser implements BankParserInterface
 {
-    public function parse(string $filePath): array
+    public function parse(string $filePath, $originalName = null): array
     {
-        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $mimeType = mime_content_type($filePath);
+        $allowedMimeTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+            'application/vnd.ms-excel' // xls
+        ];
 
-        $readerType = match (strtolower($extension)) {
+        if (!in_array($mimeType, $allowedMimeTypes)) {
+            throw new InvalidArgumentException('Для Альфа-Банка требуется Excel файл (.xlsx или .xls).');
+        }
+        Log::debug($originalName);
+        if ($originalName) {
+            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        }
+        $readerType = match ($extension) {
             'xlsx' => \Maatwebsite\Excel\Excel::XLSX,
             'xls' => \Maatwebsite\Excel\Excel::XLS,
             'csv' => \Maatwebsite\Excel\Excel::CSV,

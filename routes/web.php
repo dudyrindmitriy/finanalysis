@@ -1,14 +1,13 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GigaChatController;
 use App\Http\Controllers\ParserController;
 use App\Services\AI\GigaChatService;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/home', function () {
-    return view('home');
-})->name('home');
+Route::get('/home', [DashboardController::class, 'index'])->name('home');
 Route::middleware('auth')->group(function () {
     Route::get('/parse', [ParserController::class, 'showForm'])->name('parse-form');
     Route::post('/parse', [ParserController::class, 'parse'])->name('parse');

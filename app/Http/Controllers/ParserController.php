@@ -23,51 +23,107 @@ class ParserController extends Controller
     public function parse(Request $request)
     {
         if (!Auth::check()) {
-            return redirect(route('login'));
+            return response()->json([
+                'success' => false,
+                'message' => 'Требуется авторизация'
+            ], 401);
         }
-        $request->validate([
-            'parserType' => 'required|in:sber,tbank,alfa',
-        ]);
+        try {
+            $request->validate(['parserType' => 'required|in:sber,tbank,alfa']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Выберите банк',
+                'errors' => $e->errors()
+            ], 400);
+        }
         switch ($request['parserType']) {
             case 'sber':
-                $request->validate([
-                    'statement' => 'required|file|mimes:pdf',
-                ]);
+                try {
+                    $request->validate([
+                        'statement' => 'required|file|mimes:pdf',
+                    ]);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Для Сбера требуется PDF файл',
+                        'errors' => $e->errors()
+                    ], 400);
+                }
                 $parser = new SberParser();
                 break;
             case 'tbank':
-                $request->validate([
-                    'statement' => 'required|file|mimes:pdf',
-                ]);
+                try {
+                    $request->validate([
+                        'statement' => 'required|file|mimes:pdf',
+                    ]);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Для ТБанка требуется PDF файл',
+                        'errors' => $e->errors()
+                    ], 400);
+                }
                 $parser = new TBankParser();
                 break;
             case 'alfa':
-                $request->validate([
-                    'statement' => 'required|file|mimes:xlsx,xls',
-                ]);
+                try {
+                    $request->validate([
+                        'statement' => 'required|file|mimes:xlsx,xls',
+                    ]);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Для Альфа-Банка требуется Excel файл',
+                        'errors' => $e->errors()
+                    ], 400);
+                }
                 $parser = new AlfaParser();
                 break;
         }
-        $filePath = $request->file('statement')?->path();
-
+        $file = $request->file('statement');
+        $filePath = $file->path();
+        $originalName = $file->getClientOriginalName();
         if (!$filePath) {
-            return back()->withErrors('Файл не найден');
+            return response()->json([
+                'success' => false,
+                'message' => 'Файл не найден'
+            ], 400);
         }
         try {
-            $result = $parser->parse($filePath);
+            $result = $parser->parse($filePath, $originalName);
             if (!isset($result['transactions'])) {
-                return back()->withErrors('Ошибка парсинга файла');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ошибка парсинга файла'
+                ], 400);
             }
             $savingInfo = $this->saveTransactions($result['transactions']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         } catch (\Throwable $e) {
             Log::error("Failed to parse or save transactions.", [
                 'user_id' => Auth::id(),
                 'error_message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return back()->withErrors('Произошла ошибка при обработке файла. Пожалуйста, проверьте формат файла или свяжитесь со службой поддержки.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Произошла ошибка при обработке файла',
+            ], 500);
         }
-        return $savingInfo;
+        return response()->json([
+            'success' => true,
+            'message' => 'Выписка успешно обработана',
+            'data' => $savingInfo,
+            'stats' => [
+                'saved' => $savingInfo['saved'],
+                'duplicated' => $savingInfo['duplicated']
+            ]
+        ]);
     }
 
     private function saveTransactions($transactions)
@@ -131,5 +187,4 @@ class ParserController extends Controller
 
         return ['saved' => $savedCount, 'duplicated' => $duplicatedCount];
     }
-
 }

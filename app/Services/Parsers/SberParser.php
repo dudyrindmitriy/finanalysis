@@ -10,8 +10,12 @@ use Smalot\PdfParser\Parser;
 
 class SberParser implements BankParserInterface
 {
-    public function parse(string $filePath): array
+    public function parse(string $filePath, string $originalName = null): array
     {
+        $mimeType = mime_content_type($filePath);
+        if ($mimeType !== 'application/pdf') {
+            throw new InvalidArgumentException('Для Сбербанка требуется PDF файл.');
+        }
         $pdf = new Parser();
         $pdfDocument = $pdf->parseFile($filePath);
         $text = $pdfDocument->getText();
