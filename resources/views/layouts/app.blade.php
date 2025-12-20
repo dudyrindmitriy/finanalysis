@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>FinAnalysis</title>
-    {{-- <script src="{{ asset('js/script.js') }}"></script> --}}
+    <script src="{{ asset('js/script.js') }}"></script>
     {{-- <script src="{{ asset('js/pico.js') }}"></script> --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">

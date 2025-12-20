@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
+use App\Models\Goal;
 use App\Models\Transaction;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,9 +17,35 @@ class DashboardController extends Controller
     {
         $userId = Auth::id();
 
+        $chatHistory = [];
+        if ($userId) {
+            $cacheKey = 'cohere_chat_history_' . $userId;
+            $chatHistory = Cache::get($cacheKey, []);
+        }
+        return view('home', [
+            'chatHistory' => $chatHistory,
+        ]);
+    }
+
+    public function transactions()
+    {
+        $userId = Auth::id();
+        $transactions = Transaction::where('user_id', $userId)
+            ->with('category')
+            ->orderBy('date', 'desc')
+            ->orderBy('time', 'desc')
+            ->paginate(100);
+        return view('partials.transactions', ['transactions' => $transactions])->render();
+    }
+
+    public function dashboard()
+    {
+        $userId = Auth::id();
+
         $recentTransactions = Transaction::where('user_id', $userId)
             ->with('category')
             ->orderBy('date', 'desc')
+            ->orderBy('time', 'desc')
             ->limit(5)
             ->get();
 
@@ -80,19 +108,31 @@ class DashboardController extends Controller
             $expenseCategoryAmounts[] = $item['total_amount'];
             $expenseCategoryColors[] = $item['category_color']; // ← используем цвет из БД
         }
-        $chatHistory = [];
-        if ($userId) {
-            $cacheKey = 'giga_chat_history_' . $userId;
-            $chatHistory = Cache::get($cacheKey, []);
-        }
-        return view('home', [
+        return view('partials.dashboard', [
             'recentTransactions' => $recentTransactions,
             'expenseLabels' => $expenseLabels,
             'expenseData' => $expenseData,
             'expenseCategories' => $expenseCategories, // ← изменено
             'expenseCategoryAmounts' => $expenseCategoryAmounts, // ← изменено
             'expenseCategoryColors' => $expenseCategoryColors, // ← изменено
-            'chatHistory' => $chatHistory,
         ]);
+    }
+
+    public function import()
+    {
+        $categories = Category::orderByRaw("name = 'Прочее' DESC")->get();
+        return view('partials.import', ['categories' => $categories]);
+    }
+
+    public function goals()
+    {
+        $userId = Auth::id();
+
+        $goals = Goal::where('user_id', $userId)
+            ->orderBy('completed')
+            ->orderBy('deadline')
+            ->get();
+
+        return view('partials.goals', ['goals' => $goals]);
     }
 }

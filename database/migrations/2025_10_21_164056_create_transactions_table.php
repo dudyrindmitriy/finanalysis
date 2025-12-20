@@ -18,9 +18,9 @@ return new class extends Migration
             $table->enum('type', ['income', 'expense']);
             $table->date('date');
             $table->time('time')->nullable();
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
-            $table->string('bank_name');
+            $table->string('bank_name')->nullable();
             $table->string('mcc_code')->nullable();
             $table->string('bank_category')->nullable();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');

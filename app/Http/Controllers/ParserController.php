@@ -167,7 +167,7 @@ class ParserController extends Controller
                     'type' => $transaction['type'],
                     'date' => $transaction['date'],
                     'time' => $transaction['time'] ?? null,
-                    'description' => $transaction['description'],
+                    'description' => $transaction['description'] ?? null,
                     'bank_name' => $transaction['bank_name'],
                     'bank_category' => $transaction['bank_category'] ?? null,
                     'mcc_code' => $transaction['mcc_code'] ?? '',
@@ -186,5 +186,68 @@ class ParserController extends Controller
         }
 
         return ['saved' => $savedCount, 'duplicated' => $duplicatedCount];
+    }
+
+    public function storeManual(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Требуется авторизация'
+            ], 401);
+        }
+        try {
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:0.01',
+                'type' => 'required|in:income,expense',
+                'date' => 'required|date',
+                'description' => 'nullable|string|max:500',
+                'category_id' => 'nullable|exists:categories,id',
+                'bank_name' => 'nullable|string|max:100',
+                'time' => 'nullable|date_format:H:i',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ошибка валидации',
+                'errors' => $e->errors()
+            ], 400);
+        }
+
+        try {
+            $transactionData = [
+                'amount' => $validated['amount'],
+                'type' => $validated['type'],
+                'date' => $validated['date'],
+                'time' => $validated['time'] ?? null,
+                'description' => $validated['description'],
+                'bank_name' => $validated['bank_name'] ?? 'Ручной ввод',
+                'bank_category' => null,
+                'mcc_code' => null,
+                'category' => $validated['category_id'] ?
+                    Category::find($validated['category_id'])->name : 'Прочее',
+            ];
+
+            $savingInfo = $this->saveTransactions([$transactionData]);
+        } catch (\Throwable $e) {
+            Log::error("Failed save transactions.", [
+                'user_id' => Auth::id(),
+                'error_message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Произошла ошибка при сохранении транзакции',
+            ], 500);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Транзакция успешно сохранена',
+            'data' => $savingInfo,
+            'stats' => [
+                'saved' => $savingInfo['saved'],
+                'duplicated' => $savingInfo['duplicated']
+            ]
+        ]);
     }
 }

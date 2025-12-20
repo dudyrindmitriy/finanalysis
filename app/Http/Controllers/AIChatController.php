@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\AI\GigaChatService;
+use App\Services\AI\AIChatService;
+use App\Services\AI\AIService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class GigaChatController extends Controller
+class AIChatController extends Controller
 {
     public function sendMessage(Request $request)
     {
@@ -23,7 +24,7 @@ class GigaChatController extends Controller
                     'message' => 'Пользователь не авторизован'
                 ], 401);
             }
-            $chat = new GigaChatService;
+            $chat = new AIChatService;
             $result = $chat->sendMessage($validated['message'], $userId);
              if (isset($result['error']) && $result['error']) {
                 return response()->json([
@@ -33,7 +34,8 @@ class GigaChatController extends Controller
             }
             return response()->json([
                 'success' => true,
-                'content' => $result['choices'][0]['message']['content'] ?? 'Ответ не содержит контента',
+                'content' => $result['text'] ?? 'Ответ не содержит контента',
+                // 'content' => $result['choices'][0]['message']['content'] ?? 'Ответ не содержит контента',
                 'full_response' => $result // Опционально, для отладки
             ]);
         } catch (\Throwable $e) {
